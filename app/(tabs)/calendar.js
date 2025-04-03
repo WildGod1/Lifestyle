@@ -1,53 +1,88 @@
-// We bring in tools from React Native to build the screen
+// 📦 React Native components used to build the layout
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal } from 'react-native';
+// ⚛️ React core hooks
 import React, { useState, useEffect } from 'react';
+// 🎨 Icon library from Expo
 import { Ionicons } from '@expo/vector-icons';
 
 
 
-// This is the screen that shows when you tap "Calendar" in the app
+// 🧠 This is the main screen shown when the user taps the "Calendar" tab
 export default function CalendarScreen() {
 
-    const [totalPausedTime, setTotalPausedTime] = useState(0);
-    const [pauseStartTime, setPauseStartTime] = useState(null);
+    // --- TIMER STATE ---
 
-    const [modalVisible, setModalVisible] = useState(false);
-    const [selectedEvent, setSelectedEvent] = useState(null);
-
-
-
-    const [sessionCount, setSessionCount] = useState(1);
-
-    const [eventBlocks, setEventBlocks] = useState([]);
-
-
-    // Store the task name
+    // The task name typed into the timer input
     const [sessionName, setSessionName] = useState('');
 
-    // Store the time when the session started
+    // When the current session was started
     const [startTime, setStartTime] = useState(null);
 
-    // Store how long it’s been running (in seconds)
+    // How many seconds the timer has been running (actively)
     const [elapsedTime, setElapsedTime] = useState(0);
 
-    // Check if a session is running
-    const isTracking = startTime !== null;
+    // Stores the number of seconds before the last pause (so we can resume)
+    const [savedElapsed, setSavedElapsed] = useState(0);
 
+    // Is the timer currently running or paused?
     const [isPaused, setIsPaused] = useState(false);
 
-    const pauseTracking = () => {
-        setIsPaused(true);
-        setSavedElapsed(elapsedTime);
-        setPauseStartTime(new Date()); // Save when the pause started
+    // Used to determine if the timer is currently active
+    const isTracking = startTime !== null;
+
+    // When the user paused the timer (to calculate rest time later)
+    const [pauseStartTime, setPauseStartTime] = useState(null);
+
+    // Total time paused (used to calculate rest vs active)
+    const [totalPausedTime, setTotalPausedTime] = useState(0);
+
+    // Automatically name untitled sessions ("Session 1", "Session 2", etc.)
+    const [sessionCount, setSessionCount] = useState(1);
+
+    // --- EVENT LIST STATE ---
+
+    // Stores all completed session blocks
+    const [eventBlocks, setEventBlocks] = useState([]);
+
+    // --- UI STATE ---
+
+    // Modal (if used — may be removed later)
+    const [modalVisible, setModalVisible] = useState(false);
+
+    // The event currently selected (when user taps a block)
+    const [selectedEvent, setSelectedEvent] = useState(null);
+
+    // --- TIMER CONTROLS ---
+
+    // Start the timer (from zero or resume)
+    const startTracking = () => {
+        const name = sessionName.trim();
+        const finalName = name !== '' ? name : `Session ${sessionCount}`;
+
+        setSessionName(finalName);
+        setStartTime(new Date());
+        setElapsedTime(0);
+        setSavedElapsed(0);
+        setIsPaused(false);
+
+        if (name === '') {
+            setSessionCount(prev => prev + 1);
+        }
     };
 
+    // Pause the timer
+    const pauseTracking = () => {
+        setIsPaused(true);
+        setSavedElapsed(elapsedTime); // Save current time
+        setPauseStartTime(new Date()); // Mark when paused
+    };
 
-
+    // Resume the timer from pause
     const resumeTracking = () => {
         if (pauseStartTime) {
             const now = new Date();
             const pausedDuration = (now.getTime() - pauseStartTime.getTime()) / 1000;
-            setTotalPausedTime(prev => prev + pausedDuration); // Add to total pause time
+            setTotalPausedTime(prev => prev + pausedDuration);
         }
 
         setStartTime(new Date());
@@ -55,54 +90,34 @@ export default function CalendarScreen() {
         setPauseStartTime(null);
     };
 
-
-
+    // Stop the timer and save the session as an event block
     const stopTracking = () => {
         if (startTime) {
             const endTime = new Date();
             const durationSeconds = elapsedTime;
+
             const newBlock = {
                 id: Date.now(),            // unique id
                 name: sessionName,
                 start: startTime,
                 end: endTime,
                 duration: durationSeconds,
+                rest: Math.floor(totalPausedTime),
+                active: durationSeconds - Math.floor(totalPausedTime),
             };
 
-            // Add the new block to the list
             setEventBlocks([...eventBlocks, newBlock]);
         }
 
-        // Reset the timer
+        // Reset timer state
         setStartTime(null);
         setElapsedTime(0);
         setSessionName('');
         setIsPaused(false);
         setSavedElapsed(0);
+        setTotalPausedTime(0);
+        setPauseStartTime(null);
     };
-
-
-    const [savedElapsed, setSavedElapsed] = useState(0); // Time before the last pause
-
-    // When user presses play
-    const startTracking = () => {
-        const name = sessionName.trim();
-
-        // If the input is empty, generate a name like "Session 1"
-        const finalName = name !== '' ? name : `Session ${sessionCount}`;
-
-        setSessionName(finalName);          // Set the final name (even if auto-generated)
-        setStartTime(new Date());
-        setElapsedTime(0);
-        setSavedElapsed(0);
-        setIsPaused(false);
-
-        if (name === '') {
-            setSessionCount(prev => prev + 1); // Only increment if it was autogenerated
-        }
-    };
-
-
 
     // Update the timer every second
     useEffect(() => {
@@ -119,6 +134,7 @@ export default function CalendarScreen() {
         return () => clearInterval(interval);
     }, [startTime, isPaused, savedElapsed]);
 
+    // Converts seconds to "X min Y sec" format
     const formatSeconds = (seconds) => {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
@@ -128,39 +144,28 @@ export default function CalendarScreen() {
 
 
     return (
-        // The main background area of the screen
+        // Main container for the screen
         <View style={styles.container}>
 
-            {/* The top bar with the "Calendar" title and the little gear icon */}
+            {/* --- HEADER --- */}
             <View style={styles.topBar}>
-
-                {/* The word "Calendar" on the left side */}
                 <Text style={styles.title}>Calendar</Text>
-
-                {/* A gear icon on the right side that you can tap (we'll make it work later) */}
                 <TouchableOpacity onPress={() => console.log('Settings tapped')}>
                     <Text style={styles.settingsIcon}>⚙️</Text>
                 </TouchableOpacity>
-
             </View>
 
-            {/* DATE AND TIME ROW */}
+            {/* --- DATE ROW --- */}
             <View style={styles.dateRow}>
-                {/* Day of the week and the date */}
                 <Text style={styles.dateText}>Tuesday, Sep 15</Text>
-
-                {/* The current time (we’ll make it dynamic later) */}
                 <Text style={styles.timeText}>3:50:22</Text>
             </View>
 
-            {/* WEEKDAY LETTERS */}
+            {/* --- WEEKDAYS --- */}
             <View style={styles.weekRow}>
-                {/* First row: M T W T F S S */}
                 {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
                     <View key={index} style={styles.weekDayColumn}>
                         <Text style={styles.dayLetter}>{day}</Text>
-
-                        {/* Below each letter, show the number date */}
                         <View style={index === 2 ? styles.selectedDate : null}>
                             <Text style={index === 2 ? styles.selectedDateText : styles.dateNumber}>
                                 {11 + index}
@@ -170,13 +175,11 @@ export default function CalendarScreen() {
                 ))}
             </View>
 
-
-            {/* TIME GRID (Left-side times only for now) */}
+            {/* --- TIME GRID --- */}
             <ScrollView style={styles.timeGrid} contentContainerStyle={{ flexGrow: 1 }}>
                 {Array.from({ length: 25 }, (_, index) => {
                     const hour = index === 24 ? '00' : index < 10 ? `0${index}` : `${index}`;
 
-                    // Get events for this hour
                     const eventsThisHour = eventBlocks.filter(event => {
                         const eventHour = new Date(event.start).getHours();
                         return eventHour === index;
@@ -184,15 +187,11 @@ export default function CalendarScreen() {
 
                     return (
                         <View key={index} style={styles.timeSlot}>
-                            {/* Left: Time label */}
                             <View style={styles.timeLabelContainer}>
                                 <Text style={styles.timeLabel}>{hour}:00</Text>
                             </View>
-
-                            {/* Right: Line + events */}
                             <View style={styles.timeSlotContent}>
                                 <View style={styles.hourLine} />
-
                                 {eventsThisHour.map(event => (
                                     <TouchableOpacity
                                         key={event.id}
@@ -201,58 +200,41 @@ export default function CalendarScreen() {
                                             setModalVisible(true);
                                         }}
                                     >
-                                        <View
-                                            style={[
-                                                styles.eventBlock,
-                                                { height: Math.max(20, event.duration / 60) },
-                                            ]}
-                                        >
+                                        <View style={[styles.eventBlock, { height: Math.max(20, event.duration / 60) }]}>
                                             <Text style={styles.eventText}>{event.name}</Text>
                                             <Text style={styles.eventSubText}>
-                                                {new Date(event.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(event.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {new Date(event.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
+                                                {new Date(event.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </Text>
                                         </View>
                                     </TouchableOpacity>
-
-
-
-
                                 ))}
                             </View>
                         </View>
-
                     );
                 })}
             </ScrollView>
 
-
+            {/* --- TIMER BAR OR EVENT DETAIL --- */}
             <View style={styles.timerBar}>
                 {isTracking ? (
-                    // WHEN TIMER IS RUNNING
                     <View style={styles.timerActive}>
                         <View>
                             <Text style={styles.timerText}>
                                 {new Date(elapsedTime * 1000).toISOString().substr(11, 8)}
                             </Text>
                             <Text style={styles.sessionName}>{sessionName}</Text>
-
                         </View>
-
                         <View style={styles.timerControls}>
-                            {/* Pause OR Resume Button */}
                             <TouchableOpacity style={styles.controlButton} onPress={isPaused ? resumeTracking : pauseTracking}>
                                 <Ionicons name={isPaused ? 'play' : 'pause'} size={20} color="white" />
                             </TouchableOpacity>
-
-                            {/* Stop Button */}
                             <TouchableOpacity style={styles.controlButton} onPress={stopTracking}>
                                 <Ionicons name="stop" size={20} color="white" />
                             </TouchableOpacity>
                         </View>
-
                     </View>
                 ) : (
-                    // BEFORE TIMER STARTS
                     <>
                         <TextInput
                             style={styles.timerInput}
@@ -268,6 +250,7 @@ export default function CalendarScreen() {
                 )}
             </View>
 
+            {/* --- MODAL (Optional - Will Replace With Sliding Panel) --- */}
             {selectedEvent && (
                 <Modal
                     visible={modalVisible}
@@ -288,28 +271,18 @@ export default function CalendarScreen() {
                                     );
                                 }}
                             />
-
-
-                            {/* START TIME */}
                             <Text style={styles.modalLabel}>Start Time:</Text>
                             <Text style={styles.modalTime}>
                                 {new Date(selectedEvent.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </Text>
-
-                            {/* END TIME */}
                             <Text style={styles.modalLabel}>End Time:</Text>
                             <Text style={styles.modalTime}>
                                 {new Date(selectedEvent.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </Text>
-
-                            {/* ACTIVE + REST */}
                             <Text style={styles.modalLabel}>Active Time:</Text>
                             <Text style={styles.modalValue}>{formatSeconds(selectedEvent.active)}</Text>
-
                             <Text style={styles.modalLabel}>Rest Time:</Text>
                             <Text style={styles.modalValue}>{formatSeconds(selectedEvent.rest)}</Text>
-
-                            {/* Close Button */}
                             <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalCloseButton}>
                                 <Text style={styles.modalCloseText}>Close</Text>
                             </TouchableOpacity>
@@ -317,322 +290,246 @@ export default function CalendarScreen() {
                     </View>
                 </Modal>
             )}
-
-
-
-
         </View>
     );
+
 }
 
-// Here's how everything should look (colors, spacing, layout)
+// 🧾 STYLE DEFINITIONS FOR THE CALENDAR SCREEN
 const styles = StyleSheet.create({
-    // This is the screen background
+
+    // --- MAIN SCREEN LAYOUT ---
     container: {
-        flex: 1,                      // Fill the whole screen
-        justifyContent: 'space-between',
-        backgroundColor: '#fefefe',  // Light background color
-        paddingTop: 60,              // Add space at the top
-        paddingHorizontal: 20,       // Add space on the sides
-        paddingBottom: 90,
+      flex: 1,
+      justifyContent: 'space-between',
+      backgroundColor: '#fefefe',
+      paddingTop: 60,
+      paddingHorizontal: 20,
+      paddingBottom: 90, // Makes space for bottom UI like timer bar
     },
-
-    // This is for the top row with the title and gear
+  
+    // --- HEADER (Top Bar) ---
     topBar: {
-        flexDirection: 'row',           // Put things side-by-side (left and right)
-        justifyContent: 'space-between',// Push title to the left, gear to the right
-        alignItems: 'center',           // Line them up in the middle vertically
-        marginBottom: 20,               // Add space below this row
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
     },
-
-    // How the "Calendar" text looks
     title: {
-        fontSize: 28,       // Big text
-        fontWeight: 'bold', // Bold letters
+      fontSize: 28,
+      fontWeight: 'bold',
     },
-
-    // How the gear icon looks
     settingsIcon: {
-        fontSize: 22,        // A little smaller than the title
+      fontSize: 22,
     },
-
-    // The row with the date on the left and time on the right
+  
+    // --- DATE & TIME SECTION ---
     dateRow: {
-        flexDirection: 'row',         // Put them side by side
-        justifyContent: 'space-between', // One on left, one on right
-        alignItems: 'center',
-        marginBottom: 10,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10,
     },
-
-    // How the text looks for "Tuesday, Sep 15"
     dateText: {
-        fontSize: 16,
-        color: '#444',
+      fontSize: 16,
+      color: '#444',
     },
-
-    // How the clock text looks
     timeText: {
-        fontSize: 16,
-        color: '#999',
+      fontSize: 16,
+      color: '#999',
     },
-
-    // Row for the days of the week (M T W T F S S)
+  
+    // --- WEEKDAYS ROW (M T W T F S S + Dates) ---
     weekRow: {
-        flexDirection: 'row',        // Put days side by side
-        justifyContent: 'space-between',
-        marginBottom: 20,
-        marginTop: 10,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 20,
+      marginTop: 10,
     },
-
-    // Style for each day (M, T, F, etc.)
-    day: {
-        fontSize: 16,
-        color: '#333',
-        padding: 8,
-        borderRadius: 20,
-    },
-
-    // Style for the selected day (highlighted with circle)
-    selectedDay: {
-        backgroundColor: '#333',     // Dark circle
-        borderRadius: 20,            // Make it round
-        padding: 8,
-    },
-
-    // Text inside the selected day
-    selectedDayText: {
-        color: 'white',
-        fontSize: 16,
-        textAlign: 'center',
-    },
-
-    // This wraps the full list of time slots — makes it scrollable
-    timeGrid: {
-        marginTop: 10,        // Adds space above the time list
-        maxHeight: 600,       // Optional: Keeps height reasonable on screen
-    },
-
-    // Time row layout: horizontal (time left, events right)
-    timeSlot: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        height: 60,
-    },
-
-    // Left side: time label
-    timeLabelContainer: {
-        width: 60,  // fixed width for time labels
-        justifyContent: 'center',
-        alignItems: 'flex-end',
-        paddingRight: 10,
-    },
-
-    timeLabel: {
-        fontSize: 14,
-        color: '#999',
-    },
-
-    // Each column in the week row (M + date)
     weekDayColumn: {
-        alignItems: 'center',        // Center both M and number
-        flex: 1,                     // Spread them evenly
+      alignItems: 'center',
+      flex: 1,
     },
-
-    // Weekday letter (M, T, etc.)
     dayLetter: {
-        fontSize: 16,
-        color: '#333',
-        marginBottom: 4,
+      fontSize: 16,
+      color: '#333',
+      marginBottom: 4,
     },
-
-    // Default date number (like 12, 13, etc.)
     dateNumber: {
-        fontSize: 14,
-        color: '#666',
+      fontSize: 14,
+      color: '#666',
     },
-
-    // Style for selected date (circle highlight)
     selectedDate: {
-        backgroundColor: '#333',
-        borderRadius: 20,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
+      backgroundColor: '#333',
+      borderRadius: 20,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
     },
-
-    // Date number inside selected circle
     selectedDateText: {
-        color: 'white',
-        fontSize: 14,
+      color: 'white',
+      fontSize: 14,
     },
-
-    // Timer bar at bottom of screen
-    timerBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 12,
-        backgroundColor: '#fff',
-        borderTopWidth: 1,
-        borderColor: '#eee',
-        marginTop: 10,
+  
+    // --- TIME GRID ---
+    timeGrid: {
+      marginTop: 10,
+      maxHeight: 600,
     },
-
-    // Input before starting session
-    timerInput: {
-        flex: 1,
-        height: 40,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 100, // nice rounded corners
-        paddingHorizontal: 10,
-        marginRight: 10,
+    timeSlot: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      height: 60,
     },
-
-    // Start button (play)
-    startButton: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 8,
+    timeLabelContainer: {
+      width: 60,
+      justifyContent: 'center',
+      alignItems: 'flex-end',
+      paddingRight: 10,
     },
-
-    // Layout when timer is running
-    timerActive: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flex: 1,
+    timeLabel: {
+      fontSize: 14,
+      color: '#999',
     },
-
-    // Elapsed time display
-    timerText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 4,
-    },
-
-    // Task/session name under the timer
-    sessionName: {
-        fontSize: 14,
-        color: '#666',
-    },
-
-    // Row with pause + stop buttons
-    timerControls: {
-        flexDirection: 'row',
-        gap: 10,
-    },
-
-    // Pause and Stop buttons
-    controlButton: {
-        backgroundColor: '#007AFF',
-        padding: 10,
-        borderRadius: 8,
-        marginLeft: 8,
-    },
-
-    playIcon: {
-        fontSize: 18,       // Size of the triangle
-        color: 'white',     // Icon color
-    },
-
-    // Event block container inside the time grid
-    eventBlock: {
-        backgroundColor: '#007AFF',
-        borderRadius: 8,
-        padding: 6,
-        marginTop: 6,
-        marginRight: 12,
-    },
-
-    // Text inside the event block
-    eventText: {
-        color: 'white',
-        fontSize: 12,
-    },
-
-    // Right side: events + line
     timeSlotContent: {
-        flex: 1,
-        borderTopWidth: 1,
-        borderColor: '#eee',
-        paddingTop: 6,
-        paddingLeft: 10,
+      flex: 1,
+      borderTopWidth: 1,
+      borderColor: '#eee',
+      paddingTop: 6,
+      paddingLeft: 10,
     },
-
-    // Line across each hour
     hourLine: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 1,
-        backgroundColor: '#eee',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 1,
+      backgroundColor: '#eee',
     },
-
+  
+    // --- EVENT BLOCKS ---
+    eventBlock: {
+      backgroundColor: '#007AFF',
+      borderRadius: 8,
+      padding: 6,
+      marginTop: 6,
+      marginRight: 12,
+    },
+    eventText: {
+      color: 'white',
+      fontSize: 12,
+    },
     eventSubText: {
-        color: '#ccc',
-        fontSize: 10,
-        marginTop: 2,
+      color: '#ccc',
+      fontSize: 10,
+      marginTop: 2,
     },
-
+  
+    // --- TIMER BAR (BOTTOM UI BEFORE/AFTER TRACKING) ---
+    timerBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 12,
+      backgroundColor: '#fff',
+      borderTopWidth: 1,
+      borderColor: '#eee',
+      marginTop: 10,
+    },
+    timerInput: {
+      flex: 1,
+      height: 40,
+      borderWidth: 1,
+      borderColor: '#ccc',
+      borderRadius: 100,
+      paddingHorizontal: 10,
+      marginRight: 10,
+    },
+    startButton: {
+      backgroundColor: '#007AFF',
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+    },
+    timerActive: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flex: 1,
+    },
+    timerText: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginBottom: 4,
+    },
+    sessionName: {
+      fontSize: 14,
+      color: '#666',
+    },
+    timerControls: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    controlButton: {
+      backgroundColor: '#007AFF',
+      padding: 10,
+      borderRadius: 8,
+      marginLeft: 8,
+    },
+    playIcon: {
+      fontSize: 18,
+      color: 'white',
+    },
+  
+    // --- MODAL (WILL BE REPLACED BY BOTTOM SHEET) ---
     modalBackdrop: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
     },
-
     modalContent: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 20,
-        width: '85%',
+      backgroundColor: '#fff',
+      borderRadius: 12,
+      padding: 20,
+      width: '85%',
     },
-
     modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 10,
+      fontSize: 20,
+      fontWeight: 'bold',
+      marginBottom: 10,
     },
-
-    modalLabel: {
-        fontSize: 14,
-        color: '#666',
-        marginTop: 12,
-    },
-
-    modalTime: {
-        fontSize: 16,
-        color: '#333',
-    },
-
-    modalValue: {
-        fontSize: 16,
-        color: '#007AFF',
-        marginBottom: 4,
-    },
-
-    modalCloseButton: {
-        marginTop: 20,
-        backgroundColor: '#007AFF',
-        padding: 10,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-
-    modalCloseText: {
-        color: 'white',
-        fontWeight: 'bold',
-    },
-
     modalTitleInput: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        borderBottomWidth: 1,
-        borderColor: '#ccc',
-        paddingVertical: 4,
-      }
+      fontSize: 20,
+      fontWeight: 'bold',
+      marginBottom: 10,
+      borderBottomWidth: 1,
+      borderColor: '#ccc',
+      paddingVertical: 4,
+    },
+    modalLabel: {
+      fontSize: 14,
+      color: '#666',
+      marginTop: 12,
+    },
+    modalTime: {
+      fontSize: 16,
+      color: '#333',
+    },
+    modalValue: {
+      fontSize: 16,
+      color: '#007AFF',
+      marginBottom: 4,
+    },
+    modalCloseButton: {
+      marginTop: 20,
+      backgroundColor: '#007AFF',
+      padding: 10,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    modalCloseText: {
+      color: 'white',
+      fontWeight: 'bold',
+    },
 
 });
