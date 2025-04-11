@@ -32,6 +32,17 @@ export default function CalendarScreen() {
     const [modalVisible, setModalVisible] = useState(false); // shows or hides the event detail
     const [selectedEvent, setSelectedEvent] = useState(null); // which event was tapped
 
+    // Get the current date
+    const today = new Date();
+
+    // Turn the date into a readable string like "Thursday, Apr 11"
+    const formattedDate = today.toLocaleDateString('en-US', {
+        weekday: 'long',   // Show day name (like "Thursday")
+        month: 'short',    // Show month name shortened (like "Apr")
+        day: 'numeric',    // Show the day of the month (like "11")
+    });
+
+
 
     return (
         // Main container for the screen
@@ -47,7 +58,8 @@ export default function CalendarScreen() {
 
             {/* --- DATE ROW --- */}
             <View style={styles.dateRow}>
-                <Text style={styles.dateText}>Tuesday, Sep 15</Text>
+            // Show today’s date (automatically updates every day)
+                <Text style={styles.dateText}>{formattedDate}</Text>
                 <Text style={styles.timeText}>3:50:22</Text>
             </View>
 
