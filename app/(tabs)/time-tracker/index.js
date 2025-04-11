@@ -56,6 +56,10 @@ export default function CalendarScreen() {
         return day;
     });
 
+    // Start with today's date as the default selected date
+    const [selectedDate, setSelectedDate] = useState(today);
+
+
 
 
 
@@ -73,7 +77,6 @@ export default function CalendarScreen() {
 
             {/* --- DATE ROW --- */}
             <View style={styles.dateRow}>
-            // Show today’s date (automatically updates every day)
                 <Text style={styles.dateText}>{formattedDate}</Text>
                 <Text style={styles.timeText}>3:50:22</Text>
             </View>
@@ -81,26 +84,40 @@ export default function CalendarScreen() {
             {/* --- WEEKDAYS --- */}
             <View style={styles.weekRow}>
                 {weekDays.map((day, index) => {
-                    const isToday =
-                        day.toDateString() === today.toDateString(); // Check if this is today
+                    const isSelected = day.toDateString() === selectedDate.toDateString(); // selected by user
+                    const isToday = day.toDateString() === today.toDateString();           // actual today
 
                     return (
-                        <View key={index} style={styles.weekDayColumn}>
-                            {/* Day name: M T W T F S S */}
+                        <TouchableOpacity
+                            key={index}
+                            style={styles.weekDayColumn}
+                            onPress={() => setSelectedDate(day)}
+                        >
+                            {/* M, T, W, T... */}
                             <Text style={styles.dayLetter}>
                                 {day.toLocaleDateString('en-US', { weekday: 'narrow' })}
                             </Text>
 
-                            {/* Date number, like 11 */}
-                            <View style={isToday ? styles.selectedDate : null}>
-                                <Text style={isToday ? styles.selectedDateText : styles.dateNumber}>
+                            {/* Show date number with either highlight, blue color, or normal */}
+                            <View style={isSelected ? styles.selectedDate : null}>
+                                <Text
+                                    style={
+                                        isSelected
+                                            ? styles.selectedDateText                            // White text in black circle
+                                            : isToday
+                                                ? { ...styles.dateNumber, color: '#007AFF' }        // Blue if today but not selected
+                                                : styles.dateNumber                                  // Normal gray
+                                    }
+                                >
                                     {day.getDate()}
                                 </Text>
                             </View>
-                        </View>
+                        </TouchableOpacity>
                     );
                 })}
             </View>
+
+
 
 
             {/* --- TIME GRID --- */}
