@@ -7,6 +7,8 @@ import TimerBar from '../../../components/time-tracker/TimerBar';
 import EventBlock from '@/components/time-tracker/EventBlock';
 import useTimer from '@/hooks/useTimer'; // ⬅️ new custom hook
 import styles from '@/components/time-tracker/timeTrackerStyles';
+import getWeekDaysFromSelected from '@/utils/getWeekDaysFromSelected';
+
 
 
 
@@ -82,40 +84,52 @@ export default function CalendarScreen() {
             </View>
 
             {/* --- WEEKDAYS --- */}
-            <View style={styles.weekRow}>
-                {weekDays.map((day, index) => {
-                    const isSelected = day.toDateString() === selectedDate.toDateString(); // selected by user
-                    const isToday = day.toDateString() === today.toDateString();           // actual today
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 8 }}>
 
-                    return (
-                        <TouchableOpacity
-                            key={index}
-                            style={styles.weekDayColumn}
-                            onPress={() => setSelectedDate(day)}
-                        >
-                            {/* M, T, W, T... */}
-                            <Text style={styles.dayLetter}>
-                                {day.toLocaleDateString('en-US', { weekday: 'narrow' })}
-                            </Text>
+                {/* ← Small triangle arrow */}
+                <TouchableOpacity onPress={() => setSelectedDate(prev => new Date(prev.getTime() - 86400000))}>
+                    <Text style={{ fontSize: 10, paddingHorizontal: 0 }}>◀</Text>
+                </TouchableOpacity>
 
-                            {/* Show date number with either highlight, blue color, or normal */}
-                            <View style={isSelected ? styles.selectedDate : null}>
-                                <Text
-                                    style={
-                                        isSelected
-                                            ? styles.selectedDateText                            // White text in black circle
-                                            : isToday
-                                                ? { ...styles.dateNumber, color: '#007AFF' }        // Blue if today but not selected
-                                                : styles.dateNumber                                  // Normal gray
-                                    }
-                                >
-                                    {day.getDate()}
+                {/* Weekdays (Mon–Sun) */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', flex: 1 }}>
+                    {getWeekDaysFromSelected(selectedDate).map((day, index) => {
+                        const isSelected = day.toDateString() === selectedDate.toDateString();
+                        const isToday = day.toDateString() === today.toDateString();
+
+                        return (
+                            <TouchableOpacity
+                                key={index}
+                                onPress={() => setSelectedDate(day)}
+                                style={{ alignItems: 'center', flex: 1 }}
+                            >
+                                <Text style={{ fontSize: 14, color: '#333', marginBottom: 2 }}>
+                                    {day.toLocaleDateString('en-US', { weekday: 'narrow' })} {/* M T W... */}
                                 </Text>
-                            </View>
-                        </TouchableOpacity>
-                    );
-                })}
+                                <View style={isSelected ? styles.selectedDate : null}>
+                                    <Text
+                                        style={
+                                            isSelected
+                                                ? styles.selectedDateText
+                                                : isToday
+                                                    ? { ...styles.dateNumber, color: '#007AFF' }
+                                                    : styles.dateNumber
+                                        }
+                                    >
+                                        {day.getDate()}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+
+                {/* → Small triangle arrow */}
+                <TouchableOpacity onPress={() => setSelectedDate(prev => new Date(prev.getTime() + 86400000))}>
+                    <Text style={{ fontSize: 10, paddingHorizontal: 0 }}>▶</Text>
+                </TouchableOpacity>
             </View>
+
 
 
 
