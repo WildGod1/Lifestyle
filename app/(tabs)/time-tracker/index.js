@@ -42,6 +42,21 @@ export default function CalendarScreen() {
         day: 'numeric',    // Show the day of the month (like "11")
     });
 
+    // Get the current day (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const currentDay = today.getDay();
+
+    // Find Monday of the current week
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - ((currentDay + 6) % 7)); // Adjust to Monday
+
+    // Create an array of 7 days starting from Monday
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+        const day = new Date(weekStart);
+        day.setDate(weekStart.getDate() + i); // Move forward by i days
+        return day;
+    });
+
+
 
 
     return (
@@ -65,17 +80,28 @@ export default function CalendarScreen() {
 
             {/* --- WEEKDAYS --- */}
             <View style={styles.weekRow}>
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
-                    <View key={index} style={styles.weekDayColumn}>
-                        <Text style={styles.dayLetter}>{day}</Text>
-                        <View style={index === 2 ? styles.selectedDate : null}>
-                            <Text style={index === 2 ? styles.selectedDateText : styles.dateNumber}>
-                                {11 + index}
+                {weekDays.map((day, index) => {
+                    const isToday =
+                        day.toDateString() === today.toDateString(); // Check if this is today
+
+                    return (
+                        <View key={index} style={styles.weekDayColumn}>
+                            {/* Day name: M T W T F S S */}
+                            <Text style={styles.dayLetter}>
+                                {day.toLocaleDateString('en-US', { weekday: 'narrow' })}
                             </Text>
+
+                            {/* Date number, like 11 */}
+                            <View style={isToday ? styles.selectedDate : null}>
+                                <Text style={isToday ? styles.selectedDateText : styles.dateNumber}>
+                                    {day.getDate()}
+                                </Text>
+                            </View>
                         </View>
-                    </View>
-                ))}
+                    );
+                })}
             </View>
+
 
             {/* --- TIME GRID --- */}
             <ScrollView style={styles.timeGrid} contentContainerStyle={{ flexGrow: 1 }}>
